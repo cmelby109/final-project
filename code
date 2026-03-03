@@ -1,0 +1,292 @@
+using System;
+using System.Drawing;
+using System.Windows.Forms;
+
+namespace Melbys_farm_simulation
+{
+    public partial class Form1 : Form
+    {
+        // Tracking the day
+        int day = 1;
+
+        // Tracking money
+        int money = 50;
+
+        // Goal to win
+        int goal = 500;
+
+        // Plot state:
+        // 0 = empty
+        // 1 = growing
+        // 2 = ready
+        int[] plotState = new int[6];
+
+        // How many days left until ready 
+        int[] daysLeft = new int[6];
+
+        // What crop is planted in each plot 
+        string[] cropName = new string[6];
+
+        // Selected plot index 
+        int selectedPlot = -1;
+
+        // Store plot buttons in an array for easy looping
+        Button[] plots;
+
+        // Animal hunger 
+        int cowHunger = 0;
+        int chickenHunger = 0;
+        int pigHunger = 0;
+
+        public Form1()
+        {
+            InitializeComponent();
+        }
+
+        
+        private void Form1_Load(object sender, EventArgs e)
+        {
+            // Put the plot buttons into an array
+            plots = new Button[]
+            {
+                btnPlot1,
+                btnPlot2,
+                btnPlot3,
+                btnPlot4,
+                btnPlot5,
+                btnPlot6
+            };
+
+            // Give each plot a Tag number (0-5)
+            for (int i = 0; i < 6; i++)
+            {
+                plots[i].Tag = i;
+                plots[i].Font = new Font("Segoe UI", 11, FontStyle.Bold);
+            }
+
+            
+            lblSelected.Text = "Selected: None";
+
+            
+            lblGoal.Text = $"Goal: ${goal}";
+
+            
+            RefreshAll();
+        }
+
+        
+        private void Plot_Click(object sender, EventArgs e)
+        {
+            selectedPlot = (int)((Button)sender).Tag;
+            RefreshAll();
+        }
+
+        // Crop helper functions
+
+        int GetCost(string crop)
+        {
+            if (crop == "Carrot") return 5;
+            if (crop == "Corn") return 10;
+            if (crop == "Tomato") return 8;
+            return 0;
+        }
+
+        int GetGrowDays(string crop)
+        {
+            if (crop == "Carrot") return 2;
+            if (crop == "Corn") return 3;
+            if (crop == "Tomato") return 2;
+            return 0;
+        }
+
+        int GetSellPrice(string crop)
+        {
+            if (crop == "Carrot") return 12;
+            if (crop == "Corn") return 25;
+            if (crop == "Tomato") return 20;
+            return 0;
+        }
+
+        
+        private void PlantCrop(string crop)
+        {
+            
+            if (selectedPlot == -1) return;
+
+            
+            if (plotState[selectedPlot] != 0) return;
+
+            
+            int cost = GetCost(crop);
+            if (money < cost) return;
+
+            
+            money -= cost;
+            plotState[selectedPlot] = 1;
+            daysLeft[selectedPlot] = GetGrowDays(crop);
+            cropName[selectedPlot] = crop;
+
+            RefreshAll();
+        }
+
+        
+        private void btnPlantCarrot_Click(object sender, EventArgs e)
+        {
+            PlantCrop("Carrot");
+        }
+
+        private void btnPlantCorn_Click(object sender, EventArgs e)
+        {
+            PlantCrop("Corn");
+        }
+
+        private void btnPlantTomato_Click(object sender, EventArgs e)
+        {
+            PlantCrop("Tomato");
+        }
+
+        // End Day button 
+        private void btnEndDay_Click(object sender, EventArgs e)
+        {
+            day++;
+
+            // Grow crops
+            for (int i = 0; i < 6; i++)
+            {
+                if (plotState[i] == 1)
+                {
+                    daysLeft[i]--;
+
+                    // If the crop is done, mark it ready
+                    if (daysLeft[i] <= 0)
+                        plotState[i] = 2;
+                }
+            }
+
+            // Animals get more hungry every day
+            cowHunger = Math.Min(3, cowHunger + 1);
+            chickenHunger = Math.Min(3, chickenHunger + 1);
+            pigHunger = Math.Min(3, pigHunger + 1);
+
+            RefreshAll();
+
+            
+            CheckWin();
+        }
+
+        
+        private void btnHarvest_Click(object sender, EventArgs e)
+        {
+            if (selectedPlot == -1) return;
+            if (plotState[selectedPlot] != 2) return;
+
+            
+            string crop = cropName[selectedPlot];
+            int sell = GetSellPrice(crop);
+
+            money += sell;
+
+            
+            plotState[selectedPlot] = 0;
+            daysLeft[selectedPlot] = 0;
+            cropName[selectedPlot] = "";
+
+            RefreshAll();
+
+            
+            CheckWin();
+        }
+
+        //Feeding animals
+
+        private void btnFeedCow_Click(object sender, EventArgs e)
+        {
+            
+            if (money < 5) return;
+
+            money -= 5;
+            cowHunger = Math.Max(0, cowHunger - 1);
+
+            RefreshAll();
+        }
+
+        private void btnFeedChicken_Click(object sender, EventArgs e)
+        {
+            
+            if (money < 3) return;
+
+            money -= 3;
+            chickenHunger = Math.Max(0, chickenHunger - 1);
+
+            RefreshAll();
+        }
+
+        private void btnFeedPig_Click(object sender, EventArgs e)
+        {
+            
+            if (money < 4) return;
+
+            money -= 4;
+            pigHunger = Math.Max(0, pigHunger - 1);
+
+            RefreshAll();
+        }
+
+        
+        private void RefreshAll()
+        {
+            lblDay.Text = $"Day: {day}";
+            lblMoney.Text = $"Money: ${money}";
+            lblGoal.Text = $"Goal: ${goal}";
+
+            lblSelected.Text = selectedPlot == -1
+                ? "Selected: None"
+                : $"Selected: Plot {selectedPlot + 1}";
+
+            
+            lblCow.Text = $"Cow: {(cowHunger >= 2 ? "Hungry" : "Happy")}";
+            lblChicken.Text = $"Chicken: {(chickenHunger >= 2 ? "Hungry" : "Happy")}";
+            lblPig.Text = $"Pig: {(pigHunger >= 2 ? "Hungry" : "Happy")}";
+
+            if (plots == null) return;
+
+            for (int i = 0; i < 6; i++)
+            {
+                Button b = plots[i];
+
+                if (plotState[i] == 0)
+                {
+                    b.Text = $"Plot {i + 1}\nEmpty";
+                    b.BackColor = Color.SaddleBrown;
+                    b.ForeColor = Color.White;
+                }
+                else if (plotState[i] == 1)
+                {
+                    b.Text = $"Plot {i + 1}\n{cropName[i]}\n{daysLeft[i]} day(s)";
+                    b.BackColor = Color.Peru;
+                    b.ForeColor = Color.White;
+                }
+                else
+                {
+                    b.Text = $"Plot {i + 1}\n{cropName[i]}\nREADY!";
+                    b.BackColor = Color.Gold;
+                    b.ForeColor = Color.Black;
+                }
+
+                
+                b.FlatStyle = FlatStyle.Flat;
+                b.FlatAppearance.BorderSize = (i == selectedPlot) ? 4 : 1;
+                b.FlatAppearance.BorderColor = (i == selectedPlot) ? Color.Lime : Color.Black;
+            }
+        }
+
+        
+        private void CheckWin()
+        {
+            if (money >= goal)
+            {
+                MessageBox.Show("YOU WIN! You reached the goal money!");
+            }
+        }
+    }
+}
